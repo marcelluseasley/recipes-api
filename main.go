@@ -19,16 +19,16 @@ func init() {
 }
 
 type Recipe struct {
-	ID string `json:"id"`
-	Name string `json:"name"`
-	Tags []string `json:"tags"`
-	Ingredients []string `json:"ingredients"`
-	Instructions []string `json:"instructions"`
-	PublishedAt time.Time `json:"publishedAt"`
+	ID           string    `json:"id"`
+	Name         string    `json:"name"`
+	Tags         []string  `json:"tags"`
+	Ingredients  []string  `json:"ingredients"`
+	Instructions []string  `json:"instructions"`
+	PublishedAt  time.Time `json:"publishedAt"`
 }
 
 func NewRecipesHandler(c *gin.Context) {
-	var recipe Recipe 
+	var recipe Recipe
 	if err := c.ShouldBindJSON(&recipe); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
@@ -45,7 +45,7 @@ func NewRecipesHandler(c *gin.Context) {
 
 func ListRecipesHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, recipes)
-	
+
 }
 
 func UpdateRecipesHandler(c *gin.Context) {
@@ -65,17 +65,35 @@ func UpdateRecipesHandler(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "recipe not found"})
 		return
 	}
-	recipes[index] = recipe 
+	recipes[index] = recipe
 	c.JSON(http.StatusOK, recipe)
+}
+
+func DeleteRecipeHandler(c *gin.Context) {
+	id := c.Param("id")
+
+	index := -1
+	for i := 0; i < len(recipes); i++ {
+		if recipes[i].ID == id {
+			index = i
+		}
+	}
+
+	if index == -1 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Recipe not found"})
+		return
+	}
+	recipes = append(recipes[:index], recipes[index+1:]...)
+	c.JSON(http.StatusOK, gin.H{"message": "recipe has been deleted"})
 }
 
 func main() {
 	router := gin.Default()
 
-
 	router.POST("/recipes", NewRecipesHandler)
 	router.GET("/recipes", ListRecipesHandler)
 	router.PUT("/recipes/:id", UpdateRecipesHandler)
+	router.DELETE("/recipes/:id", DeleteRecipeHandler)
 
 	router.Run()
 }
