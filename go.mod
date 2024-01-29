@@ -1,4 +1,4 @@
-module github.com/marcellusesley/recipes-api
+module github.com/marcelluseasley/recipes-api
 
 go 1.21.6
 
