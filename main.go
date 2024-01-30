@@ -52,7 +52,9 @@ func main() {
 	authorized.POST("/recipes", recipesHandler.CreateRecipesHandler)
 	authorized.GET("/recipes/search", recipesHandler.SearchRecipesHandler)
 
-	router.Run()
+	if err = router.Run(); err != nil {
+		log.Fatal(err)
+	}
 }
 
 func AuthMiddleware() gin.HandlerFunc {
