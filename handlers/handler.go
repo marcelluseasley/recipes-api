@@ -65,12 +65,16 @@ func (handler *RecipesHandler) ListRecipesHandler(c *gin.Context) {
 		log.Println("request to redis")
 		recipes := make([]models.Recipe, 0)
 		json.Unmarshal([]byte(val), &recipes)
+		if len(recipes) == 0 {
+			goto mongo
+		}
+		log.Println("records in redis: ", len(recipes))
 		c.JSON(http.StatusOK, recipes)
 		return
 	} else if err != nil {
 		log.Printf("error while getting recipes from redis: %v", err)
 	}
-
+	mongo:
 	log.Println("request to mongo")
 	cur, err := handler.collection.Find(handler.ctx, bson.M{})
 	if err != nil {

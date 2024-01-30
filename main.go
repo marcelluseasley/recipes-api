@@ -4,6 +4,8 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"time"
+
 	"os"
 
 	"github.com/gin-gonic/gin"
@@ -17,6 +19,7 @@ import (
 
 func main() {
 	var recipesHandler *handlers.RecipesHandler
+	var authHandler *handlers.AuthHandler
 
 	ctx := context.Background()
 
@@ -42,26 +45,28 @@ func main() {
 	collection := client.Database("demo").Collection("recipes")
 	recipesHandler = handlers.NewRecipesHandler(ctx, collection, redisClient)
 
+	collectionUsers := client.Database("demo").Collection("users")
+	authHandler = handlers.NewAuthHandler(ctx, collectionUsers)
+
 	router := gin.Default()
 
+	s := &http.Server{
+		Addr: ":8080",
+		Handler: router,
+		ReadTimeout: 2 *time.Second,
+		WriteTimeout: 2*time.Second,
+	}
+
 	authorized := router.Group("")
-	authorized.Use(AuthMiddleware())
+	authorized.Use(handlers.AuthMiddleware())
 	authorized.GET("/recipes", recipesHandler.ListRecipesHandler)
 	authorized.PUT("/recipes/:id", recipesHandler.UpdateRecipesHandler)
 	authorized.DELETE("/recipes/:id", recipesHandler.DeleteRecipeHandler)
 	authorized.POST("/recipes", recipesHandler.CreateRecipesHandler)
 	authorized.GET("/recipes/search", recipesHandler.SearchRecipesHandler)
+	router.POST("/signin", authHandler.SignInHandler)
+	router.POST("/refresh", authHandler.RefreshHandler)
 
-	router.Run()
-}
-
-func AuthMiddleware() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		if c.GetHeader("X-API-KEY") != os.Getenv("X_API_KEY") {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
-			c.AbortWithStatus(401)
-			return
-		}
-		c.Next() 
-	}
+	//router.Run()
+	log.Fatal(s.ListenAndServe())
 }
