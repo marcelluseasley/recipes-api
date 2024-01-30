@@ -3,10 +3,11 @@ package main
 import (
 	"context"
 	"log"
+	"net/http"
 	"os"
 
-	"github.com/redis/go-redis/v9"
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"go.mongodb.org/mongo-driver/mongo/readpref"
@@ -43,11 +44,26 @@ func main() {
 
 	router := gin.Default()
 
-	router.POST("/recipes", recipesHandler.CreateRecipesHandler)
-	router.GET("/recipes", recipesHandler.ListRecipesHandler)
-	router.PUT("/recipes/:id", recipesHandler.UpdateRecipesHandler)
-	router.DELETE("/recipes/:id", recipesHandler.DeleteRecipeHandler)
-	router.GET("/recipes/search", recipesHandler.SearchRecipesHandler)
+	authorized := router.Group("")
+	authorized.Use(AuthMiddleware())
+	authorized.GET("/recipes", recipesHandler.ListRecipesHandler)
+	authorized.PUT("/recipes/:id", recipesHandler.UpdateRecipesHandler)
+	authorized.DELETE("/recipes/:id", recipesHandler.DeleteRecipeHandler)
+	authorized.POST("/recipes", recipesHandler.CreateRecipesHandler)
+	authorized.GET("/recipes/search", recipesHandler.SearchRecipesHandler)
 
-	router.Run()
+	if err = router.Run(); err != nil {
+		log.Fatal(err)
+	}
+}
+
+func AuthMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if c.GetHeader("X-API-KEY") != os.Getenv("X_API_KEY") {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+			c.AbortWithStatus(401)
+			return
+		}
+		c.Next() 
+	}
 }

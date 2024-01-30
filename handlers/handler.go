@@ -32,6 +32,7 @@ func NewRecipesHandler(ctx context.Context, collection *mongo.Collection, redisC
 }
 
 func (handler *RecipesHandler) CreateRecipesHandler(c *gin.Context) {
+
 	var recipe models.Recipe
 	if err := c.ShouldBindJSON(&recipe); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -63,13 +64,17 @@ func (handler *RecipesHandler) ListRecipesHandler(c *gin.Context) {
 	if err != redis.Nil {
 		log.Println("request to redis")
 		recipes := make([]models.Recipe, 0)
-		json.Unmarshal([]byte(val), &recipes)
+		if err = json.Unmarshal([]byte(val), &recipes); err != nil {
+			log.Printf("error while unmarshalling recipes from redis: %v", err)
+			goto mongo
+		}
 		c.JSON(http.StatusOK, recipes)
 		return
 	} else if err != nil {
 		log.Printf("error while getting recipes from redis: %v", err)
 	}
 
+	mongo:
 	log.Println("request to mongo")
 	cur, err := handler.collection.Find(handler.ctx, bson.M{})
 	if err != nil {
@@ -81,7 +86,12 @@ func (handler *RecipesHandler) ListRecipesHandler(c *gin.Context) {
 	recipes := make([]models.Recipe, 0)
 	for cur.Next(handler.ctx) {
 		var recipe models.Recipe
-		cur.Decode(&recipe)
+		errDecode := cur.Decode(&recipe)
+		if errDecode != nil {
+			log.Println(errDecode)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": errDecode.Error()})
+			return
+		}
 		recipes = append(recipes, recipe)
 	}
 
@@ -146,7 +156,14 @@ func (handler *RecipesHandler) SearchRecipesHandler(c *gin.Context) {
 	recipes := make([]models.Recipe, 0)
 	for cur.Next(handler.ctx) {
 		var recipe models.Recipe
-		cur.Decode(&recipe)
+
+		errDecode := cur.Decode(&recipe)
+		if errDecode != nil {
+			log.Println(errDecode)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": errDecode.Error()})
+			return
+		}
+
 		recipes = append(recipes, recipe)
 	}
 

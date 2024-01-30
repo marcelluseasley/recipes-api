@@ -1,0 +1,76 @@
+name: Go CI
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: '1.21.6'  # Adjust this to match the Go version you're using
+
+      - name: Build the Go application
+        run: go build -v ./...
+
+      - name: Run unit tests
+        run: go test -v ./...
+
+  gosec-scan:
+    name: GoSec Security Scan
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: '1.21.6'  # Ensure this matches the version used in the test job
+
+      - name: Install GoSec
+        run: go install github.com/securego/gosec/v2/cmd/gosec@latest
+
+      - name: Run GoSec security scan
+        run: gosec -fmt=json -out=gosec-report.json ./...
+        # You might want to upload the gosec-report.json as an artifact or use it in further steps
+
+      - name: Upload GoSec Report
+        if: failure()  # This step will run only if the previous step fails
+        uses: actions/upload-artifact@v2
+        with:
+          name: GoSec Report
+          path: gosec-report.json
+
+
+  snyk-scan:
+    name: Snyk Vulnerability Scan
+    needs: gosec-scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+
+      - name: Set up Snyk
+        uses: snyk/actions/setup@master
+
+      - name: Snyk monitor
+        run: snyk monitor --org=your-org-name --project-name=your-project-name
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        # Make sure to set SNYK_TOKEN in your repository's secrets
+
+      - name: Snyk test
+        run: snyk test --org=your-org-name --project-name=your-project-name
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        # Snyk test will fail the build if vulnerabilities are found that do not meet your configured policies
+
