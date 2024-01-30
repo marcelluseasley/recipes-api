@@ -43,6 +43,14 @@ jobs:
         run: gosec -fmt=json -out=gosec-report.json ./...
         # You might want to upload the gosec-report.json as an artifact or use it in further steps
 
+      - name: Upload GoSec Report
+        if: failure()  # This step will run only if the previous step fails
+        uses: actions/upload-artifact@v2
+        with:
+          name: GoSec Report
+          path: gosec-report.json
+
+
   snyk-scan:
     name: Snyk Vulnerability Scan
     needs: gosec-scan
