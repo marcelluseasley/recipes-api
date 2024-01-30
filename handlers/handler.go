@@ -32,6 +32,7 @@ func NewRecipesHandler(ctx context.Context, collection *mongo.Collection, redisC
 }
 
 func (handler *RecipesHandler) CreateRecipesHandler(c *gin.Context) {
+
 	var recipe models.Recipe
 	if err := c.ShouldBindJSON(&recipe); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
